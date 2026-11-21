@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>99 AV 海报墙</title>
+<style>
+:root{
+  /* 浅色（系统默认 / 跟随系统浅色模式）：贴近原生 Windows 应用的灰白风格 */
+  --bg:#ffffff; --panel:#ffffff; --panel2:#f1f3f5; --line:#e3e6ec;
+  --fg:#1a1d24; --fg-dim:#6b7280; --accent:#e5484d; --accent2:#3b82f6;
+  --ok:#16a34a; --warn:#d97706;
+  --cover:#e9edf3; --shot:#dfe4ec; --cell-bg:#eef1f5;
+  --topbar-bg:rgba(255,255,255,.92); --chip-bg:rgba(255,255,255,.85);
+  --radius:10px;
+  --topbar-h:52px;
+  /* 卡片宽度基准：窄卡片放竖版三列堆叠，宽卡片放横向三栏 */
+  --card:172px;
+  --card-wide:420px;
+}
+/* 跟随系统深色模式：仅当用户系统设为深色时才用深色配色（真正的「系统默认」） */
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --line:#262b36;
+    --fg:#e8eaf0; --fg-dim:#9aa3b2; --accent:#e5484d; --accent2:#3b82f6;
+    --ok:#22c55e; --warn:#f59e0b;
+    --cover:#cfd6e4; --shot:#a9b4c7; --cell-bg:#0b0d11;
+    --topbar-bg:rgba(15,17,21,.92); --chip-bg:rgba(15,17,21,.8);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--fg);
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Alibaba PuHuiTi","Source Han Sans SC","HarmonyOS Sans SC","Noto Sans CJK SC",sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+button,input,select{font-family:inherit}
+a{color:var(--accent2);text-decoration:none}
+
+/* ---------- 顶栏 ---------- */
+#topbar{
+  position:fixed; inset:0 0 auto 0; height:var(--topbar-h); z-index:50;
+  display:flex; align-items:center; gap:8px; padding:0 10px;
+  background:var(--topbar-bg); backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+}
+#brand{font-weight:700;letter-spacing:.5px;white-space:nowrap;margin-right:2px}
+#brand span{color:var(--accent)}
+#tabs{display:flex;gap:6px;overflow-x:auto;flex:1;scrollbar-width:none}
+#tabs::-webkit-scrollbar{display:none}
+.tab{
+  border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
+  padding:6px 12px; border-radius:999px; white-space:nowrap; cursor:pointer;
+  transition:.15s;
+}
+.tab:hover{color:var(--fg);border-color:#3a4152}
+.tab.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.tab .cnt{opacity:.7;font-size:12px;margin-left:4px}
+/* ---------- 搜索框 ---------- */
+#sqwrap{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+#search{
+  width:150px; padding:7px 10px; border-radius:8px; border:1px solid var(--line);
+  background:var(--panel); color:var(--fg); outline:none;
+}
+#search:focus{border-color:var(--accent2)}
+#search::-webkit-search-cancel-button,#search::-webkit-search-decoration{display:none}
+#sqclear{
+  border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
+  height:34px; min-width:34px; padding:0 8px; border-radius:8px; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+#sqclear:hover{color:var(--fg);border-color:#3a4152}
+#sqinfo{font-size:11px;color:var(--fg-dim);white-space:nowrap}
+mark{background:rgba(229,72,77,.38);color:#fff;border-radius:2px;padding:0 1px}
+.card.flash{outline:2px solid var(--accent2);outline-offset:-1px}
+.iconbtn{
+  border:1px solid var(--line); background:var(--panel); color:var(--fg-dim);
+  height:34px; min-width:34px; padding:0 9px; border-radius:8px; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:4px;
+}
+.iconbtn:hover{color:var(--fg);border-color:#3a4152}
+
+/* ---------- 进度条 ---------- */
+#progress{position:fixed; top:var(--topbar-h); left:0; right:0; height:3px; z-index:49; background:transparent}
+#progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .2s}
+#ptext{
+  position:fixed; top:calc(var(--topbar-h) + 4px); right:10px; z-index:49;
+  font-size:11px; color:var(--fg-dim); background:var(--chip-bg);
+  padding:1px 6px; border-radius:6px; pointer-events:none;
+}
+
+/* ---------- 网格 ---------- */
+#wrap{padding:calc(var(--topbar-h) + 10px) 10px 60px}
+/* 卡片分两档：默认窄卡（一屏很多张），宽卡给足三栏宽度 */
+.grid{display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(var(--card),1fr))}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(var(--card-wide),1fr))}
+/* 三列内容：封面 | 截图 | 视频 —— 宽卡内横向三栏，窄卡内纵向堆叠 */
+.card{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  overflow:hidden; position:relative; cursor:default; contain:layout paint;
+}
+.card.seen{border-color:#2f6b3a}
+.card.novid{opacity:.82}
+.grid.wide .card{display:grid; grid-template-columns:1fr 1.05fr 1.15fr}
+/* 卡片底部信息在宽卡里横跨三列 */
+.grid.wide .card>.meta{grid-column:1 / -1}
+.cell{position:relative;background:var(--cell-bg);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.cell img{width:100%;height:100%;object-fit:contain;display:block;background:#0b0d12}
+/* 封面/截图实际是视频帧（横版 16:9），用 contain 保证整张图完整显示，不被裁切 */
+.cell.cover{aspect-ratio:16/9;background:var(--cover)}
+.cell.shots{aspect-ratio:16/9;background:var(--shot)}
+.cell.videos{background:var(--cell-bg);flex-direction:column;gap:4px;padding:6px}
+/* 宽卡但窗口不够宽时，回退纵向堆叠，避免三列被压扁 */
+@media (max-width:520px){
+  .grid.wide .card{display:block}
+  .grid.wide .card>.meta{grid-column:auto}
+}
+.ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#5b6474;font-size:12px}
+.cell .badge{
+  position:absolute;top:5px;left:5px;background:rgba(0,0,0,.65);color:#fff;
+  font-size:11px;padding:1px 6px;border-radius:6px;
+}
+.cell .badge.seen{background:rgba(34,197,94,.85)}
+.cell .badge.part{background:rgba(59,130,246,.88)}
+.cell .badge.nov{background:rgba(245,158,11,.85);color:#1a1205}
+/* 封面整格即播放/放大入口：桌面 hover 显播放标，触屏常驻显示 */
+.cell.cover .play{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.30);opacity:.85;transition:.15s;color:#fff;font-size:30px;
+}
+.cell.cover:hover .play,.cell.cover:focus-within .play{opacity:1;background:rgba(0,0,0,.15)}
+@media (hover:none){.cell.cover .play{opacity:.55;font-size:24px}}
+.meta{padding:6px 8px 8px}
+.meta .id{font-weight:600;font-size:13px;word-break:break-all;line-height:1.3}
+.meta .sub{color:var(--fg-dim);font-size:11px;margin-top:2px;display:flex;gap:6px;flex-wrap:wrap}
+.vlist{display:flex;flex-direction:column;gap:4px;width:100%;overflow:auto;max-height:100%}
+.vitem{
+  display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--panel2);
+  color:var(--fg);border-radius:6px;padding:5px 7px;font-size:11.5px;cursor:pointer;
+  display:flex;align-items:center;gap:5px;
+}
+.vitem:hover{border-color:var(--accent);color:#fff}
+.vitem .sz{color:var(--fg-dim);font-size:10.5px;margin-left:auto;white-space:nowrap}
+.vitem .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vitem.watched{opacity:.6}
+.vitem.watched .nm::after{content:" ✓";color:var(--ok)}
+/* 观看进度：列表项右侧百分比 + 卡片底部细进度条 */
+.vitem .pc{color:var(--accent2);font-size:10.5px;font-weight:600;white-space:nowrap}
+.vitem .pc.done{color:var(--ok)}
+.card .pbar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(0,0,0,.25)}
+.card .pbar>i{display:block;height:100%;background:var(--accent2);transition:width .25s}
+.card .pbar.done>i{background:var(--ok)}
+.shotrow{display:flex;gap:4px;width:100%;height:100%}
+.shotrow>div{flex:1;height:100%;overflow:hidden;border-radius:4px;background:var(--cell-bg)}
+.shotrow img{width:100%;height:100%;object-fit:contain;cursor:zoom-in;background:#0b0d12}
+.empty{color:var(--fg-dim);text-align:center;padding:60px 10px;font-size:15px}
+
+/* ---------- 视频弹窗 ---------- */
+#vd{border:0;padding:0;background:transparent;max-width:none;max-height:none;width:100vw;height:100dvh}
+#vd::backdrop{background:rgba(0,0,0,.72)}
+/* dialog 居中：margin:auto 让 box 水平垂直居中，窗口再小也不溢出 */
+#vd .box{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.6); width:min(92vw,1100px); margin:auto; position:relative;
+}
+#vd .bar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+#vd .bar .t{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:120px}
+/* v1.9.0 快进快退按钮 */
+#vd .jumpbtn{border:1px solid var(--line);background:var(--panel2);color:var(--fg);padding:5px 9px;border-radius:6px;cursor:pointer;font-size:12px}
+#vd .jumpbtn:hover{border-color:var(--accent)}
+#vd .jumpgrp{display:inline-flex;gap:3px}
+#vd-jumpmsg{position:absolute;inset:auto 0 8px 0;height:24px;background:rgba(0,0,0,.7);color:#fff;font-size:13px;text-align:center;line-height:24px;opacity:0;transition:.25s;border-radius:4px;z-index:5}
+#vd-jumpmsg.on{opacity:1}
+#vd video{display:block;width:100%;max-height:78vh;background:#000}
+@media (max-width:640px){
+  #vd .box{width:96vw}
+  #vd video{max-height:60vh}
+}
+
+/* ---------- 图片查看 ---------- */
+#imgv{border:0;padding:0;background:transparent}
+#imgv::backdrop{background:rgba(0,0,0,.9)}
+#imgv img{display:block;margin:auto;max-width:94vw;max-height:92vh;border-radius:8px}
+
+/* ---------- 局域网访问（二维码） ---------- */
+#lan{border:0;padding:0;background:transparent}
+#lan::backdrop{background:rgba(0,0,0,.6)}
+#lan .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(92vw,420px);padding:18px;margin:auto;text-align:center}
+#lan h3{margin:0 0 6px;font-size:16px}
+#lan .tip{color:var(--fg-dim);font-size:12px;margin-bottom:12px}
+#lan .qr{display:inline-block;line-height:0;background:#fff;padding:10px;border-radius:8px;max-width:100%}
+#lan .qr svg{display:block;width:230px;height:230px;max-width:100%}
+#lan .url{margin-top:12px;font-size:13px;word-break:break-all}
+#lan .url a{color:var(--accent)}
+#lan .row{display:flex;gap:8px;justify-content:center;margin-top:12px}
+
+/* ---------- 设置 ---------- */
+#set{border:0;padding:0;background:transparent}
+#set::backdrop{background:rgba(0,0,0,.6)}
+#set .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(92vw,420px);padding:16px;margin:auto}
+#set h3{margin:0 0 12px;font-size:16px}
+#set label{display:flex;align-items:flex-start;gap:8px;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}
+#set label:first-of-type{border-top:0}
+#set .hint{color:var(--fg-dim);font-size:11.5px;margin-top:2px}
+#set .row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--fg);padding:7px 14px;border-radius:8px;cursor:pointer}
+.btn:hover{border-color:#3a4152}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+#set textarea{
+  width:100%;height:110px;background:var(--cell-bg);color:var(--fg-dim);border:1px solid var(--line);
+  border-radius:8px;padding:8px;font-size:11px;resize:vertical;
+}
+#toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:99;
+  background:var(--panel2);border:1px solid var(--line);color:var(--fg);
+  padding:8px 14px;border-radius:8px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;
+}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div id="brand">99 AV <span>海报墙</span></div>
+  <div id="tabs"></div>
+  <div id="sqwrap">
+    <input id="search" type="search" placeholder="搜索番号…" autocomplete="off">
+    <button id="sqclear" type="button" title="清空搜索">✕</button>
+    <span id="sqinfo"></span>
+  </div>
+  <button class="iconbtn" id="btn-lan" title="局域网访问（手机/平板扫码打开）">📱 局域网</button>
+  <button class="iconbtn" id="btn-scan" title="重新扫描目录">⟳ 扫描</button>
+  <button class="iconbtn" id="btn-set" title="设置">⚙</button>
+</div>
+<div id="progress"><i></i></div>
+<div id="ptext"></div>
+
+<div id="wrap"><div class="grid" id="grid"></div></div>
+
+<dialog id="vd">
+  <div class="box">
+    <div class="bar">
+      <div class="t" id="vd-title"></div>
+      <div class="jumpgrp">
+        <button class="jumpbtn" id="vd-back10" title="后退 10 秒">⟲ 10s</button>
+        <button class="jumpbtn" id="vd-back5" title="后退 5 秒">⟲ 5s</button>
+        <button class="jumpbtn" id="vd-back3" title="后退 3 秒">⟲ 3s</button>
+        <button class="jumpbtn" id="vd-back1" title="后退 1 秒">⟲ 1s</button>
+        <button class="jumpbtn" id="vd-fwd1" title="前进 1 秒">1s ⟰</button>
+        <button class="jumpbtn" id="vd-fwd3" title="前进 3 秒">3s ⟰</button>
+        <button class="jumpbtn" id="vd-fwd5" title="前进 5 秒">5s ⟰</button>
+        <button class="jumpbtn" id="vd-fwd10" title="前进 10 秒">10s ⟰</button>
+      </div>
+      <button class="btn" id="vd-prev">‹ 上一个</button>
+      <button class="btn" id="vd-next">下一个 ›</button>
+      <button class="btn" id="vd-sys" title="用手机系统播放器打开（下载同源文件，不转码）">系统播放器</button>
+      <button class="btn primary" id="vd-close">关闭 ✕</button>
+    </div>
+    <video id="vd-video" controls playsinline preload="metadata"></video>
+    <div id="vd-jumpmsg"></div>
+    <div id="vd-pct" style="font-size:12px;color:var(--fg-dim);padding:5px 2px 0"></div>
+    <div id="vd-err" style="display:none;padding:8px 10px;background:var(--panel2);color:#e5484d;font-size:13px;line-height:1.5"></div>
+  </div>
+</dialog>
+
+<dialog id="imgv"><img id="imgv-img" alt=""></dialog>
+
+<dialog id="lan">
+  <div class="box">
+    <h3>局域网访问</h3>
+    <div class="tip">用手机/平板扫码，或在同一局域网内手动打开下面的地址</div>
+    <div class="qr" id="lan-qr"></div>
+    <div class="url">地址：<a id="lan-url" href="#" target="_blank"></a></div>
+    <div class="row"><button class="btn primary" id="lan-close">关闭</button></div>
+  </div>
+</dialog>
+
+<dialog id="set">
+  <div class="box">
+    <h3>设置</h3>
+    <label><input type="checkbox" id="s-hidenovid"><span>隐藏没有视频的番号<span class="hint">勾选后，列表只显示含视频的条目。</span></span></label>
+    <label><input type="checkbox" id="s-hidemarks"><span>隐藏 b / k 标记条目<span class="hint">勾选后，隐藏番号名形如「b」「bb」「k」或「番号 + 空格 + k」的空目录条目。</span></span></label>
+    <label><input type="checkbox" id="s-bigcards"><span>大图模式<span class="hint">卡片更大、单屏数量更少。</span></span></label>
+    <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:4px">
+      <div style="font-size:12px;color:var(--fg-dim);margin-bottom:6px">指定目录（媒体根）</div>
+      <input id="s-root" type="text" spellcheck="false"
+             placeholder="\\ds1821\HD\Download\99 AV"
+             style="width:100%;padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:var(--cell-bg);color:var(--fg);font-size:12px;font-family:inherit">
+      <div id="s-roothint" class="hint" style="margin-top:4px">媒体所在目录（内含 B1 / B2 / 下载完成1~3）。改动后保存到 <code>config.json</code> 并自动重新扫描。</div>
+      <div class="row" style="margin-top:8px;justify-content:flex-start">
+        <button class="btn" id="s-rootcheck">检查</button>
+        <button class="btn" id="s-rootreset">恢复默认</button>
+        <button class="btn primary" id="s-rootsave">保存</button>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:4px">
+      <div style="font-size:12px;color:var(--fg-dim);margin-bottom:6px">观看进度（共 <b id="s-pcount">0</b> 个视频有进度记录；已看完 <b id="s-pdone">0</b> 个）</div>
+      <div id="s-plist" style="max-height:150px;overflow:auto;font-size:11.5px;line-height:1.7"></div>
+      <div class="row" style="margin-top:8px;justify-content:flex-start">
+        <button class="btn" id="s-pclear">清空观看进度</button>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:4px">
+      <div style="font-size:12px;color:var(--fg-dim);margin-bottom:6px">已看记录（共 <b id="s-count">0</b> 条；可编辑，每行一条，支持 <code>番号目录/文件名</code> 或 <code>文件名</code>）</div>
+      <textarea id="s-watched" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:8px;justify-content:flex-start">
+        <button class="btn" id="s-import">导入</button>
+        <button class="btn" id="s-clear">清空已看记录</button>
+      </div>
+    </div>
+    <div class="row"><button class="btn primary" id="s-ok">完成</button></div>
+    <div style="color:var(--fg-dim);font-size:11px;margin-top:8px">所有设置与已看记录均自动保存在本机浏览器中，无需手动保存。</div>
+  </div>
+</dialog>
+
+<div id="toast"></div>
+
+<script src="data/library.js"></script>
+<script>
+"use strict";
+
+/* ================= 常量 ================= */
+var LIB  = window.__AV_LIBRARY__ || {items:[],count:0,total_videos:0,total_posters:0,total_shots:0};
+var SRC_ORDER = ["B1","B2","下载完成1","下载完成2","下载完成3"];
+var LS = {
+  tab:"avwall.tab", pos:"avwall.pos.", watched:"avwall.watched",
+  set:"avwall.settings", ver:"avwall.dataver", q:"avwall.query", prog:"avwall.progress",
+  schema:"avwall.keyschema"
+};
+// v1.9.0：记录键 schema —— 1=完整相对路径（旧），2=番号目录/文件名（新，目录搬家不丢记录）
+var KEY_SCHEMA = 2;
+// 用户个人标记：目录名整体就是 b/bb/bbb 或 k；或「番号 + 空白 + k」形式
+// （scanner 已忽略 ^[bB]+$，此处再兜底 k 系，并由设置开关控制显隐）
+var MARK_RE = /^[bBkK]+$|[\s\u3000]+[bBkK]+$/;
+
+/* ================= 状态 ================= */
+var items = [];
+var view = [];
+var _viewByKey = null;   // view 的 key 索引（refreshSeen 用），applyFilter 后置空重建
+var curTab = "all";
+var q = "";
+var settings = {hideNoVideo:false, hideMarks:true, bigCards:false};
+var watched = {};          // normKey -> true（点开过）
+var progress = {};         // normKey -> 0..100（观看百分比，最新一次播放进度）
+var videoIndex = [];       // 当前视图内的视频播放列表
+var curV = -1;
+var loading = {done:0,total:0};
+
+/* ================= 工具 ================= */
+// file:// 模式下媒体的根：library.json 的 root（UNC 绝对路径，如 \\Ds1821\hd\Download\99 AV）。
+// 页面在 file:// 下 location 是 file:///Z:/...，与媒体所在 UNC 盘无关，必须显式拼 UNC 根，
+// 否则会退化成 file:///B1/...（相对当前协议根）导致图片/视频全部 404。
+var FILE_ROOT = (window.__AV_LIBRARY__ && window.__AV_LIBRARY__.root) || "";
+// v1.8.0：原先用 charAt(0)==="\\\\" 判断是否 UNC —— 那是「两个反斜杠字符」，
+// charAt(0) 只返回一个字符，条件恒为 false（写法必错，仅被浏览器容错掩盖）。
+if(FILE_ROOT.slice(0,2) === "\\\\" || /^[A-Za-z]:/.test(FILE_ROOT)){
+  FILE_ROOT = FILE_ROOT.replace(/\\/g,"/").replace(/\/+$/,"");
+}
+function fileUrl(rel){
+  // UNC 共享：file://Ds1821/hd/... （file:// + 主机名 + 共享路径，正斜杠已由上面统一）
+  // 本地盘：file:///Z:/...
+  var prefix = /^\/\/[^/]+/.test(FILE_ROOT) ? "file:" + FILE_ROOT : "file://" + FILE_ROOT;
+  return prefix + "/" + enc(rel);
+}
+function $(s){return document.querySelector(s);}
+function enc(p){ return p.split("/").map(encodeURIComponent).join("/"); }
+function normKey(k){
+  k = String(k||"").trim();
+  if(!k) return "";
+  // v1.9.0：键改为「番号目录/文件名」（相对路径的最后两段），不再含前面的内容目录。
+  // 这样把 AF0001 从「B1」挪到「下载完成2」甚至别的层级下，已看标记与观看进度都跟着走。
+  // 仍保留「目录/文件名」两级（而不是只取文件名）：同名文件（如 FEATURE.MP4）会出现在
+  // 多个番号目录（实测 17 组同名冲突），只取 basename 会互相误标「已看」。
+  // 注：不同内容目录下若存在「同番号目录名 + 同文件名」，两条记录会合并——
+  // 这是「按目录记录」的固有取舍，目录搬家优先于该极端场景区分。
+  // 反斜杠先归一（Windows 资源管理器复制出来的路径是 \ ，设置面板「导入」直接粘过来用）。
+  k = k.replace(/\\/g, "/");
+  var segs = k.split("/").filter(Boolean);
+  if(segs.length>=2) k = segs[segs.length-2] + "/" + segs[segs.length-1];
+  return k.toUpperCase();
+}
+function mediaUrl(rel){
+  if(location.protocol === "file:") return fileUrl(rel);
+  return "media/" + enc(rel);
+}
+function thumbUrl(rel){
+  if(location.protocol === "file:") return fileUrl(rel);
+  return "thumb/" + enc(rel);
+}
+function fmtSize(n){
+  if(!n && n!==0) return "";
+  var u=["B","KB","MB","GB","TB"],i=0,v=Number(n);
+  while(v>=1024 && i<u.length-1){v/=1024;i++;}
+  return (i===0? v.toFixed(0) : v.toFixed(1)) + u[i];
+}
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+var toastTimer=null;
+function toast(msg){
+  var el=$("#toast"); el.textContent=msg; el.classList.add("on");
+  clearTimeout(toastTimer); toastTimer=setTimeout(function(){el.classList.remove("on");},2200);
+}
+
+/* ---------- 搜索辅助 ---------- */
+// 把文本按关键字拆成片段，命中部分包 <mark>（用于番号名高亮）。
+// 关键字为空或含正则元字符时直接原样返回（esc 后）。
+function hlText(text, kw){
+  var t=String(text==null?"":text);
+  if(!kw) return esc(t);
+  var lower=t.toLowerCase(), k=kw.toLowerCase(), out="", i=0, p;
+  while((p=lower.indexOf(k,i))>=0){
+    out+=esc(t.slice(i,p))+"<mark>"+esc(t.slice(p,p+k.length))+"</mark>";
+    i=p+k.length;
+  }
+  out+=esc(t.slice(i));
+  return out;
+}
+
+/* ================= 持久化 ================= */
+function loadSettings(){
+  try{
+    var s=JSON.parse(localStorage.getItem(LS.set)||"{}");
+    if(s && typeof s==="object"){
+      if(typeof s.hideNoVideo==="boolean") settings.hideNoVideo=s.hideNoVideo;
+      if(typeof s.hideMarks==="boolean") settings.hideMarks=s.hideMarks;
+      if(typeof s.bigCards==="boolean") settings.bigCards=s.bigCards;
+    }
+  }catch(e){}
+  try{
+    var t=localStorage.getItem(LS.tab);
+    if(t && (t==="all" || SRC_ORDER.indexOf(t)>=0)) curTab=t;
+  }catch(e){}
+  applySettingsToUI();
+}
+function saveSettings(){
+  try{
+    localStorage.setItem(LS.set, JSON.stringify(settings));
+    localStorage.setItem(LS.tab, curTab);
+  }catch(e){}
+}
+function loadWatched(){
+  try{
+    var raw=localStorage.getItem(LS.watched);
+    if(raw){
+      var arr=JSON.parse(raw);
+      if(Array.isArray(arr)) arr.forEach(function(k){ var n=normKey(k); if(n) watched[n]=true; });
+    }
+  }catch(e){}
+}
+function saveWatched(){
+  try{
+    var keys=Object.keys(watched);
+    // v1.9.0：按「插入序」裁剪（markWatched 触碰时会把键移到末尾），
+    // 原先按字母序 sort 会永久丢掉首字母靠前的记录。
+    if(keys.length>4000) keys=keys.slice(-4000);
+    localStorage.setItem(LS.watched, JSON.stringify(keys));
+  }catch(e){ toast("已看记录保存失败（存储空间不足）"); }
+}
+function isWatched(relPath){
+  return !!watched[normKey(relPath)];
+}
+
+/* ================= 观看进度（百分比） ================= */
+function loadProgress(){
+  try{
+    var raw=localStorage.getItem(LS.prog);
+    if(raw){
+      var o=JSON.parse(raw);
+      if(o && typeof o==="object"){
+        for(var k in o){
+          if(!Object.prototype.hasOwnProperty.call(o,k)) continue;
+          var v=Number(o[k]);
+          if(isFinite(v) && v>0){
+            // v1.9.0：旧完整路径键在读取时就归一化为「番号目录/文件名」；
+            // 同键冲突（理论不会发生，兜底）取较大百分比。
+            var nk=normKey(k);
+            if(!nk) continue;
+            v=Math.min(100, Math.round(v));
+            if(progress[nk]===undefined || progress[nk]<v) progress[nk]=v;
+          }
+        }
+      }
+    }
+  }catch(e){}
+}
+function saveProgress(){
+  try{
+    // 超上限时按「插入序」保留最近的 4000 条（setWatchPct 触碰时把键移到末尾）。
+    // v1.9.0：原先先 keys.sort() 再 slice —— 按字母序裁剪会把首字母靠前的
+    // 番号（如 01 系、A 系）永久删掉，而且裁剪结果写回后不可恢复。
+    var keys=Object.keys(progress);
+    if(keys.length>4000){
+      keys=keys.slice(-4000);
+      var keep={};
+      for(var i=0;i<keys.length;i++) keep[keys[i]]=progress[keys[i]];
+      progress=keep;
+    }
+    localStorage.setItem(LS.prog, JSON.stringify(progress));
+  }catch(e){
+    // 存储空间不足时必须让用户知道，否则会毫无感知地丢掉全部新进度
+    toast("观看进度保存失败（浏览器存储空间不足）");
+  }
+}
+/* 取某视频的观看百分比；无记录返回 -1（表示"未知/未播放"） */
+function getProgress(relPath){
+  var v=progress[normKey(relPath)];
+  if(typeof v!=="number" || !isFinite(v) || v<=0) return -1;
+  return Math.min(100, Math.round(v));
+}
+/* 记录一次播放进度（取最大值，不回退：重新打开从上次位置继续） */
+function setWatchPct(relPath, pct){
+  var n=normKey(relPath);
+  if(!n) return;
+  pct=Math.max(0, Math.min(100, Math.round(pct)));
+  if(pct<=0) return;
+  // v1.9.0：LRU touch —— JS 对象对「已存在键」重新赋值不会移到末尾，
+  // 必须先 delete 再 set，saveProgress 超限裁剪时才能保住最近看过的条目。
+  var had=Object.prototype.hasOwnProperty.call(progress,n);
+  var oldv=had?progress[n]:undefined;
+  if(had) delete progress[n];
+  if(oldv!==undefined && oldv>=pct){
+    progress[n]=oldv;
+    // 只增不减：数值没变就不动内存。但若磁盘被外部清空（用户手动清了
+    // localStorage、或隐私模式/配额异常），内存与磁盘会不一致 → 这里补写一次，
+    // 让磁盘追上内存，避免刷新后进度「消失」。
+    try{
+      var disk=localStorage.getItem(LS.prog);
+      if(!disk || disk.indexOf('"'+n+'"')<0) saveProgress();
+    }catch(e){}
+    return;
+  }
+  progress[n]=pct;
+  saveProgress();
+}
+/* 看完阈值：>=95% 视为看完（容忍片尾/误差）。全站唯一判定入口。 */
+var DONE_PCT = 95;
+function isDonePct(p){ return p>=DONE_PCT; }
+/* 文案：已看 + 百分比（单个视频）
+   注：本函数当前无调用点（实际用 itemProgressLabel），
+   为避免两份口径走偏，与 itemProgressLabel 保持同一判定入口。 */
+function progressLabel(relPath){
+  var p=getProgress(relPath);
+  if(p<0) return isWatched(relPath) ? "已看" : "";
+  if(isDonePct(p)) return "已看完";
+  return "已看 "+p+"%";
+}
+/* 一个番号可能有多个视频文件：徽标取其中「进度最高」的那个，
+   避免只看过第 2 个文件时徽标反而空白（比 v1.4.0 的「已看」还退步）。 */
+function itemProgressPct(item){
+  var best=-1;
+  (item.videos||[]).forEach(function(v){
+    var p=getProgress(v.path);
+    if(p>best) best=p;
+  });
+  return best;
+}
+function itemProgressLabel(item){
+  var best=itemProgressPct(item);
+  if(best<0){
+    var anyW=false;
+    (item.videos||[]).forEach(function(v){ if(isWatched(v.path)) anyW=true; });
+    return anyW ? "已看" : "";
+  }
+  if(best>=DONE_PCT) return "已看完";
+  return "已看 "+best+"%";
+}
+/* 番号下任意一个视频点开过就算「已看」（与 refreshSeen 口径一致） */
+function itemWatched(item){
+  var any=false;
+  (item.videos||[]).forEach(function(v){ if(isWatched(v.path)) any=true; });
+  return any;
+}
+
+/* ================= 键格式迁移（v1.9.0：完整路径 → 番号目录/文件名） ================= */
+// 旧记录（schema=1）的键是「B1/AF0001/xxx.mp4」这类完整相对路径；新键是「AF0001/xxx.mp4」。
+// loadWatched/loadProgress 已按新 normKey 归一化读入（移动目录后仍能找到记录），
+// 本迁移只做「预览 + 落盘改写」：把磁盘上的旧键清理掉，并记录 schema 版本。
+var _migPending=null;    // 待迁移的旧键样本 [{from,to}]，null=无需处理
+function checkKeyMigration(){
+  var cur=0;
+  try{ cur=parseInt(localStorage.getItem(LS.schema)||"0",10)||0; }catch(e){}
+  if(cur>=KEY_SCHEMA) return;
+  try{ localStorage.setItem(LS.schema, String(KEY_SCHEMA)); }catch(e){}
+  // 找出磁盘上仍是 3 段以上（含内容目录前缀）的旧键 → 展示 old→new 对照
+  var samples=[];
+  try{
+    var wArr=JSON.parse(localStorage.getItem(LS.watched)||"[]");
+    if(Array.isArray(wArr)) wArr.forEach(function(k){
+      var n=normKey(k);
+      if(n && String(k).toUpperCase()!==n) samples.push({from:k,to:n});
+    });
+    var pObj=JSON.parse(localStorage.getItem(LS.prog)||"{}");
+    for(var k in pObj){
+      if(!Object.prototype.hasOwnProperty.call(pObj,k)) continue;
+      var n2=normKey(k);
+      if(n2 && String(k).toUpperCase()!==n2) samples.push({from:k,to:n2});
+    }
+  }catch(e){}
+  if(!samples.length){
+    // 旧记录本来就全是「目录/文件名」形式（无需改写），立即把内存状态落盘一次，
+    // 清掉存储里的历史残留键
+    saveWatched(); saveProgress();
+    toast("观看记录已改用「番号目录/文件名」存储，目录移动后记录不再丢失");
+    return;
+  }
+  _migPending=samples;
+  showMigrateDialog();
+}
+function showMigrateDialog(){
+  var s=_migPending||[];
+  var d=document.createElement("dialog");
+  d.id="migdlg";
+  d.style.cssText="border:0;padding:0;background:transparent";
+  var rows=s.slice(0,20).map(function(o){
+    return '<div style="display:flex;gap:8px;font-size:11px;padding:2px 0;border-bottom:1px solid var(--line)">'+
+      '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg-dim)" title="'+esc(o.from)+'">'+esc(o.from)+'</span>'+
+      '<span>→</span>'+
+      '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ok)" title="'+esc(o.to)+'">'+esc(o.to)+'</span></div>';
+  }).join("");
+  d.innerHTML='<div class="box" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(92vw,560px);padding:16px;margin:auto">'+
+    '<h3 style="margin:0 0 8px;font-size:16px">观看记录改为「按目录」存储</h3>'+
+    '<div style="font-size:12.5px;color:var(--fg-dim);line-height:1.6;margin-bottom:10px">'+
+    '检测到 <b>'+s.length+'</b> 条记录仍按「内容目录/番号目录/文件名」的完整路径存储。'+
+    '改为「番号目录/文件名」后，把番号目录移动到其他位置（如把 AF0001 从 B1 移到下载完成2），'+
+    '已看标记和观看进度都会跟着走，不再丢失。<br>转换对照（最多显示 20 条）：</div>'+
+    '<div style="max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--panel2)">'+rows+'</div>'+
+    '<div class="row" style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">'+
+    '<button class="btn" id="mig-cancel" style="border:1px solid var(--line);background:var(--panel2);color:var(--fg);padding:7px 14px;border-radius:8px;cursor:pointer">以后再说</button>'+
+    '<button class="btn primary" id="mig-ok" style="background:var(--accent);border-color:var(--accent);color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer">立即转换</button>'+
+    '</div></div>';
+  document.body.appendChild(d);
+  d.showModal();
+  $("#mig-ok").onclick=function(){
+    saveWatched(); saveProgress();   // 内存（已归一化）落盘 → 存储中的旧键一并被清理
+    _migPending=null; d.close(); d.remove();
+    toast("已转换 "+s.length+" 条记录：目录移动后进度与已看标记不再丢失");
+  };
+  $("#mig-cancel").onclick=function(){
+    d.close(); d.remove();
+    // 不立即改写磁盘；此后任何一次进度保存都会自然完成归一化落盘
+    toast("暂不转换也可正常使用：新记录已按目录存储");
+  };
+}
+
+/* ================= 顶部 Tab ================= */
+// tab 计数按「过滤后」口径：让用户切过去前就知道该目录实际能看到多少条
+function buildTabs(){
+  var box=$("#tabs"); box.innerHTML="";
+  var defs=[{id:"all",name:"全部"}];
+  SRC_ORDER.forEach(function(s){
+    if(items.some(function(it){return it.src===s;})) defs.push({id:s,name:s});
+  });
+  defs.forEach(function(d){
+    var b=document.createElement("button");
+    b.className="tab"+(d.id===curTab?" on":"");
+    b.dataset.tab=d.id;
+    // v1.8.0：「全部」原先用未过滤的 items.length，与实际卡片数对不上。
+    // 现在所有 Tab 统一走同一套过滤口径（与 applyFilter 一致）。
+    var n = items.filter(function(it){
+        if(d.id!=="all" && it.src!==d.id) return false;
+        if(settings.hideNoVideo && !it.has_video) return false;
+        if(settings.hideMarks && MARK_RE.test(String(it.id||"").trim())) return false;
+        return true;
+      }).length;
+    b.innerHTML = esc(d.name) + '<span class="cnt">'+n+'</span>';
+    b.onclick=function(){ curTab=d.id; saveSettings(); refresh(); };
+    box.appendChild(b);
+  });
+}
+
+/* ================= 过滤与视图 ================= */
+// 搜索框右侧的结果计数与清除按钮显隐；仅在 render 后调用
+function updateSearchInfo(){
+  var info=$("#sqinfo"), cl=$("#sqclear");
+  if(info) info.textContent = q ? (view.length+" 个结果") : "";
+  if(cl) cl.style.display = q ? "inline-flex" : "none";
+}
+function saveQuery(){
+  try{ localStorage.setItem(LS.q, q); }catch(e){}
+}
+function loadQuery(){
+  try{
+    var v=localStorage.getItem(LS.q);
+    if(v){ q=v; var el=$("#search"); if(el) el.value=v; }
+  }catch(e){}
+}
+function applyFilter(){
+  var ql = q ? q.toLowerCase() : "";
+  view = items.filter(function(it){
+    if(curTab!=="all" && it.src!==curTab) return false;
+    if(settings.hideNoVideo && !it.has_video) return false;
+    // 用户个人标记（b/bb/bbb/k、或「番号 + 空白 + k」）按开关隐藏
+    if(settings.hideMarks && MARK_RE.test(String(it.id||"").trim())) return false;
+    if(ql){
+      // 搜索范围：番号 + 来源目录 + 视频文件名
+      var s=(it.id+" "+it.src+" "+(it.videos||[]).map(function(v){return v.name;}).join(" ")).toLowerCase();
+      if(s.indexOf(ql)<0) return false;
+    }
+    return true;
+  });
+  _viewByKey=null;   // 视图变了 → refreshSeen 的 key 索引要重建
+}
+
+/* ================= 渲染 ================= */
+// 节流合并：图片 load/error 事件很密，按 150ms 批量刷新进度条，避免每个事件都重排
+var progBatch={timer:null};
+function progressTick(){
+  loading.done++;
+  if(progBatch.timer) return;
+  progBatch.timer=setTimeout(function(){
+    progBatch.timer=null;
+    setProgress(loading.done, loading.total);
+  },150);
+}
+function trackImg(im){
+  // 计数「本视图期望加载的图片总数」与「已完成数」；加载失败也计入完成
+  loading.total++;
+  var done=false;
+  im.addEventListener("load",function(){ if(!done){done=true;progressTick();} });
+  im.addEventListener("error",function(){ if(!done){done=true;progressTick();} });
+  return im;
+}
+function imgCell(cls, rel, alt){
+  var d=document.createElement("div");
+  d.className="cell "+cls;
+  if(!rel){
+    d.innerHTML='<div class="ph">无海报</div>';
+    return d;
+  }
+  var im=trackImg(document.createElement("img"));
+  im.loading="lazy"; im.decoding="async"; im.alt=alt||"";
+  im.src=thumbUrl(rel);
+  d.appendChild(im);
+  return d;
+}
+
+function render(){
+  applyFilter();
+  var g=$("#grid");
+  // 大图模式 = 宽卡（横向三栏）；默认窄卡（纵向堆叠）
+  document.documentElement.style.setProperty("--card", settings.bigCards?"260px":"172px");
+  g.classList.toggle("wide", !!settings.bigCards);
+  // 清空旧卡片（真实浏览器中 innerHTML="" 会移除全部子节点）
+  g.innerHTML="";
+  loading.total=0; loading.done=0;
+  updateSearchInfo();
+  if(!view.length){
+    var em=document.createElement("div");
+    em.className="empty";
+    em.textContent = q ? ("没有匹配「"+q+"」的条目")
+      : (curTab!=="all" ? ("「"+curTab+"」下没有可显示的条目") : "没有可显示的条目");
+    g.appendChild(em);
+    setProgress(0,0); return;
+  }
+  var frag=document.createDocumentFragment();
+  view.forEach(function(it){ frag.appendChild(card(it)); });
+  g.appendChild(frag);
+  // 图片是懒加载：这里先把分母置为 0，让进度条在真实加载计数后再显示
+  setProgress(0,0);
+}
+// tab 切换 / 搜索 / 数据刷新共用的「重建 + 定位」流程
+function refresh(){
+  buildTabs();
+  render();
+  restorePos();
+}
+
+function card(it){
+  var c=document.createElement("div");
+  c.className="card"+(itemWatched(it)?" seen":"")+(!it.has_video?" novid":"");
+  c.dataset.key=it.key;
+  // 第一列：封面（最早一张 = 海报）。整格可点：有视频→播放，无视频→放大看图
+  var cover=imgCell("cover", it.poster, it.id);
+  var badge=document.createElement("div");
+  badge.className="badge"+(!it.has_video?" nov":"");
+  var lbl = !it.has_video ? "无视频" : itemProgressLabel(it);
+  badge.textContent = lbl;
+  if(lbl && lbl.indexOf("%")>0) badge.classList.add("part");
+  if(lbl) cover.appendChild(badge);
+  var play=document.createElement("div");
+  play.className="play";
+  play.textContent = it.has_video ? "▶" : "🔍";
+  cover.appendChild(play);
+  cover.style.cursor="pointer";
+  cover.title = it.has_video ? "点击播放视频" : "点击查看大图";
+  cover.onclick=function(){
+    if(it.has_video) openVideo(it.key, 0);
+    else if(it.poster) openImg(it.poster);
+  };
+  c.appendChild(cover);
+
+  // 第二列：截图（点击可放大）
+  var sc=document.createElement("div");
+  sc.className="cell shots";
+  if(it.shots && it.shots.length){
+    var row=document.createElement("div");
+    row.className="shotrow";
+    it.shots.forEach(function(sp){
+      var w=document.createElement("div");
+      var im=trackImg(document.createElement("img"));
+      im.loading="lazy"; im.decoding="async"; im.alt=sp;
+      im.onclick=function(e){ e.stopPropagation(); openImg(sp); };
+      im.src=thumbUrl(sp);
+      w.appendChild(im); row.appendChild(w);
+    });
+    sc.appendChild(row);
+  }else{
+    sc.innerHTML='<div class="ph">无截图</div>';
+  }
+  c.appendChild(sc);
+
+  // 第三列：视频（可点击弹出播放；多视频时逐个列出）
+  var vc=document.createElement("div");
+  vc.className="cell videos";
+  if(it.has_video){
+    var list=document.createElement("div");
+    list.className="vlist";
+    it.videos.forEach(function(v,vi){
+      var b=document.createElement("button");
+      b.type="button";                      // 防止在表单语义里被当成 submit
+      b.className="vitem"+(isWatched(v.path)?" watched":"");
+      var vp=getProgress(v.path);
+      b.innerHTML='<span class="nm">'+esc(v.name)+'</span>'+
+        (vp>=0?'<span class="pc'+(isDonePct(vp)?" done":"")+'">'+(isDonePct(vp)?"100%":vp+"%")+'</span>':'')+
+        '<span class="sz">'+fmtSize(v.size)+'</span>';
+      b.onclick=function(e){ e.stopPropagation(); openVideo(it.key, vi); };
+      list.appendChild(b);
+    });
+    vc.appendChild(list);
+  }else{
+    vc.innerHTML='<div class="ph">无视频</div>';
+  }
+  c.appendChild(vc);
+
+  // 信息（搜索时高亮番号命中部分）
+  var m=document.createElement("div");
+  m.className="meta";
+  m.innerHTML='<div class="id">'+hlText(it.id,q)+'</div>'+
+    '<div class="sub"><span>'+esc(it.src)+'</span>'+
+    (it.vcount?'<span>'+it.vcount+' 个视频</span>':"")+
+    (it.shots&&it.shots.length?'<span>'+it.shots.length+' 张截图</span>':"")+'</div>';
+  c.appendChild(m);
+  // 观看进度条：贴在卡片底部（仅当有百分比记录时显示）
+  var fp=itemProgressPct(it);
+  if(fp>=0){
+    var pb=document.createElement("div");
+    pb.className="pbar"+(isDonePct(fp)?" done":"");
+    pb.innerHTML='<i style="width:'+fp+'%"></i>';
+    c.appendChild(pb);
+  }
+  return c;
+}
+
+/* ================= 进度条 ================= */
+var progTimer=null;
+function setProgress(d,t){
+  var bar=$("#progress>i"), txt=$("#ptext");
+  if(!t){ bar.style.width="0"; txt.textContent=""; return; }
+  var p=Math.min(100, Math.round(d/t*100));
+  bar.style.width=p+"%";
+  txt.textContent="图片加载 "+d+"/"+t+"（"+p+"%）";
+  if(d>=t){
+    // 全部完成后 1.2s 自动收起进度条
+    clearTimeout(progTimer);
+    progTimer=setTimeout(function(){ if(loading.done>=loading.total){ bar.style.width="0"; txt.textContent=""; } }, 1200);
+  }
+}
+
+/* ================= 滚动位置记忆 ================= */
+// 跳到指定卡片并短暂高亮（搜索 Enter 用）
+function scrollToCard(key){
+  var k=String(key).replace(/[\\"\]]/g,"\\$&");   // 兼容无 CSS.escape 的老内核
+  var el=document.querySelector('.card[data-key="'+k+'"]');
+  if(!el) return;
+  el.scrollIntoView({block:"center",behavior:"auto"});
+  el.classList.add("flash");
+  setTimeout(function(){ el.classList.remove("flash"); },1600);
+}
+var saveTimer=null;
+function savePos(){
+  clearTimeout(saveTimer);
+  // v1.8.0：key 与 scrollY 必须在「触发时」就捕获。
+  // 原先在 250ms 定时器里才读 curTab → 切 Tab 期间会把旧 Tab 的位置写到新 Tab 的键上。
+  var key=LS.pos+curTab;
+  var y=Math.round(window.scrollY||0);
+  saveTimer=setTimeout(function(){
+    try{ localStorage.setItem(key, String(y)); }catch(e){}
+  },250);
+}
+function restorePos(){
+  var v=0;
+  try{ v=parseInt(localStorage.getItem(LS.pos+curTab)||"0",10)||0; }catch(e){}
+  if(v>0){
+    // 等图片撑开高度后再滚动，否则早期内容未渲染导致滚动被 clamp
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){ window.scrollTo(0,v); });
+    });
+  }
+}
+
+/* ================= 全屏关闭竞态防护 ================= */
+// v1.9.0：手机经 IP 访问时，视频用「原生全屏」播放；退出全屏后的第一下点击
+// 有几率被浏览器吞掉（焦点滞留在视频元素 / 退出全屏的 native 事件与 click 竞态），
+// 表现为点「关闭」没反应。三重对策：
+// 1) pointerup（触屏）与 click（鼠标）双通道触发关闭，先到先关，重复调用自动跳过；
+// 2) 关闭后 300ms / 800ms 各复查一次，dialog 仍未关闭就强制再关一次；
+// 3) 全屏退出事件（标准 + webkit + IE）触发后主动把焦点还给弹窗。
+var _closeRetryTimers=[];
+function safeCloseVideo(){
+  if(!$("#vd").open) return;
+  closeVideo();
+  // 复查兜底：pointerup 与 click 双通道下可能多次进入，定时器只保留一组
+  if(_closeRetryTimers.length) return;
+  [300,800].forEach(function(t){
+    _closeRetryTimers.push(setTimeout(function(){
+      _closeRetryTimers=[];
+      if($("#vd").open) closeVideo();
+    },t));
+  });
+}
+["fullscreenchange","webkitendfullscreen","MSFullscreenChange"].forEach(function(ev){
+  document.addEventListener(ev,function(){
+    if($("#vd").open){
+      var b=$("#vd-close");
+      if(b && document.activeElement!==b){ try{ b.focus(); }catch(e){} }
+    }
+  });
+});
+
+/* ================= 视频弹窗 ================= */
+function buildVideoIndex(){
+  videoIndex=[];
+  view.forEach(function(it){
+    // 统一按 videos 数组全量入列（无视频番号 videos 为空数组，天然不入列）
+    (it.videos||[]).forEach(function(v,vi){ videoIndex.push({key:it.key,vi:vi,item:it,v:v}); });
+  });
+}
+function openVideo(key, vi){
+  buildVideoIndex();
+  var idx=-1;
+  for(var i=0;i<videoIndex.length;i++){ if(videoIndex[i].key===key && videoIndex[i].vi===vi){idx=i;break;} }
+  curV=idx;
+  showVideo(curV);
+}
+function showVideo(i){
+  if(i<0||i>=videoIndex.length) return;
+  // 切走前先把上一个视频的进度落盘（避免节流窗口内丢进度）
+  flushProgress();
+  curV=i;
+  var e=videoIndex[i];
+  var v=$("#vd-video");
+  $("#vd-title").textContent = e.item.id + " · " + e.v.name + "（"+fmtSize(e.v.size)+"）";
+  showVdErr(null); // 先清掉上次的错误提示
+  // 先清空旧 src 再赋新值：某些实现下「先 load() 再设 src」会丢掉后续加载；
+  // 顺序固定为 removeAttribute → 设 src → load() → 弹窗 → play
+  v.removeAttribute("src");
+  v.src = mediaUrl(e.v.path);
+  v.load();
+  curPath = e.v.path;   // 供 timeupdate 采集进度用
+  // 弹窗内先显示已记录的旧进度（本次播放会实时覆盖）
+  var prevPct=getProgress(e.v.path);
+  updateVdPct(prevPct>=0 ? prevPct : null);
+  $("#vd").showModal();
+  // 打开即尝试播放：用户手势内调用，浏览器允许；被策略拒绝时静默（用户可点播放按钮）
+  try{
+    var p=v.play();
+    if(p&&p.catch) p.catch(function(){}); // 自动播放被拒不报错，用户可手动点
+  }catch(err){}
+  markWatched(e.v.path);
+}
+
+/* ================= 播放进度采集 ================= */
+var curPath = null;       // 当前播放的视频相对路径
+var _lastSave = 0;        // 上次落盘时刻（节流用）
+var _lastPct = 0;         // 上次记录的百分比
+var _jumpMsgTimer=null;
+function jumpVideo(sec){
+  var v=$("#vd-video");
+  if(!v || !curPath) return false;
+  var newTime=(v.currentTime||0)+sec;
+  if(newTime<0) newTime=0;
+  if(v.duration && isFinite(v.duration)){
+    if(newTime>v.duration) newTime=v.duration;
+  }
+  try{ v.currentTime=newTime; }catch(e){}
+  /* 显示临时提示 */
+  var msg=$("#vd-jumpmsg");
+  if(msg){
+    clearTimeout(_jumpMsgTimer);
+    msg.textContent=sec>0?("已快进"+sec+"秒"):("已快退"+Math.abs(sec)+"秒");
+    msg.classList.add("on");
+    _jumpMsgTimer=setTimeout(function(){ msg.classList.remove("on"); },800);
+  }
+  return true;
+}
+/* 更新弹窗内的「已看 xx%」提示
+   注意：显示的是「历史最高进度」而不是「本次播放到哪」——
+   进度只增不减（回看旧片段不该让卡片上的百分比倒退），
+   若弹窗显示本次位置、卡片显示历史最高，两处数字会互相矛盾。 */
+function updateVdPct(pct){
+  var box=$("#vd-pct");
+  if(!box) return;
+  if(pct==null || !isFinite(pct) || pct<0){ box.textContent=""; return; }
+  var p=Math.round(pct);
+  // 与已记录的最高进度取较大者，保证弹窗与卡片数字一致
+  if(curPath){
+    var rec=getProgress(curPath);
+    if(rec>p) p=rec;
+  }
+  box.textContent = isDonePct(p) ? "已看完 100%" : ("已看 "+p+"%");
+}
+function onTimeUpdate(){
+  var v=$("#vd-video");
+  if(!v || !curPath) return;
+  var d=v.duration, c=v.currentTime;
+  if(!d || !isFinite(d) || d<=0) return;      // 元数据未就绪
+  if(!c || !isFinite(c) || c<0) return;
+  var pct=c/d*100;
+  updateVdPct(pct);
+  // 节流：同百分比区间不重复写；距上次落盘至少 3 秒才写盘
+  var now=Date.now();
+  var changed=Math.abs(pct-_lastPct)>=1;
+  if(changed && (now-_lastSave)>3000){
+    _lastPct=pct; _lastSave=now;
+    setWatchPct(curPath, pct);
+    refreshSeen();
+  }
+}
+/* 立即把当前进度落盘（切视频/关弹窗/离开页面时调用） */
+function flushProgress(){
+  var v=$("#vd-video");
+  if(!v || !curPath) return;
+  var d=v.duration, c=v.currentTime;
+  if(d && isFinite(d) && d>0 && c && isFinite(c) && c>0){
+    var pct=c/d*100;
+    if(pct>=100) pct=100;
+    setWatchPct(curPath, pct);
+    _lastPct=pct; _lastSave=Date.now();
+    refreshSeen();
+  }
+}
+
+/* 把真实解码错误显示到弹窗底部：手机端「转圈」时用户能直接看到原因，便于定位 */
+function showVdErr(msg){
+  var box=$("#vd-err");
+  if(!msg){ box.style.display="none"; box.textContent=""; return; }
+  box.style.display="block";
+  box.textContent=msg;
+}
+
+/* 服务模式下主动预取元数据，确保进度条/时长可用（file:// 模式浏览器自行处理）。
+   注意：绝不能在 progress 事件回调里调用 load()。load() 会中止当前加载并重开一轮，
+   又立刻触发 progress，于是形成 progress→load→abort→loadstart→progress 的
+   无限自打断死循环：readyState 恒为 0、duration 恒为 null，浏览器报
+   "AbortError: The play() request was interrupted by a new load request."，
+   视频永远起不了播（file:// 模式因下面第一行直接 return 才幸免）。
+   这里只在「彻底没有可加载资源」时补一次 load()，并加一次性重入保护，
+   保证同一轮最多补一次，杜绝 load→progress→load 自打断。 */
+var _warmTried=false;
+function warmVideo(){
+  if(location.protocol==="file:") return;
+  var v=$("#vd-video");
+  if(!v) return;
+  if(v.readyState>=1) return;      // 元数据已就绪，无需动作
+  if(v.networkState!==3) return;    // 3=NETWORK_NO_SOURCE，只有彻底没源才补
+  if(_warmTried) return;            // 同一轮只补一次
+  _warmTried=true;
+  setTimeout(function(){ _warmTried=false; }, 3000);
+  try{ v.load(); }catch(e){}
+}
+
+/* 媒体解码失败兜底：给出错误明细，并提供「用系统播放器打开」（下载同源文件，
+   鸿蒙/安卓系统播放器对 H.264 等解码更全，可绕过网页端限制）。纯下载，不转码。 */
+function onVdError(){
+  var v=$("#vd-video");
+  var code=v.error?v.error.code:0;
+  var names={1:"视频流被中止",2:"网络错误（请检查手机与电脑在同一局域网）",3:"解码错误（该文件编码手机浏览器不支持，可点下面用系统播放器打开）",4:"视频格式/来源不被支持"};
+  var msg="播放失败：";
+  if(code && names[code]) msg+=names[code];
+  else msg+="未知错误";
+  msg+="  [code="+code+", ns="+v.networkState+", rs="+v.readyState+"]";
+  if(location.protocol!=="file:"){
+    msg+="  | 也可用系统播放器打开（下载同源文件）。";
+  }
+  showVdErr(msg);
+}
+
+/* 系统播放器兜底：仅 HTTP 模式有效（file:// 直接用系统打开即可）。
+   下载该视频同源文件并触发系统播放器；不转码、不动原文件。 */
+function sysOpen(){
+  if(location.protocol==="file:"){
+    showVdErr("当前为本地模式，请直接用手机文件管理器打开对应文件。");
+    return;
+  }
+  if(curV<0||curV>=videoIndex.length) return;
+  var e=videoIndex[curV];
+  var url=mediaUrl(e.v.path);
+  showVdErr("正在用系统播放器打开：" + e.v.name);
+  var a=document.createElement("a");
+  a.href=url; a.download=e.v.name||"video.mp4";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function closeVideo(){
+  var v=$("#vd-video");
+  // v1.8.0：flushProgress 必须在 pause/清 src 之前调用。
+  // pause 事件是异步派发的，若先 pause 再同步 removeAttribute("src")+load()，
+  // 等 pause 监听器真正执行时 duration 已是 NaN → 最后一档进度必然丢失。
+  flushProgress();
+  try{ v.pause(); }catch(e){}
+  v.removeAttribute("src"); v.load();
+  $("#vd").close();
+  curV=-1;
+  curPath=null;
+}
+function stepVideo(d){
+  if(curV<0) return;
+  var i=curV+d;
+  if(i<0) i=0; if(i>=videoIndex.length) i=videoIndex.length-1;
+  if(i===curV) return;   // 已在首尾，不再重载当前视频（避免播放位置被清零）
+  showVideo(i);
+}
+function markWatched(rel){
+  var n=normKey(rel);
+  if(!n) return;
+  if(watched[n]){
+    // v1.9.0：LRU touch —— delete 后重插把键移到末尾，
+    // 使 saveWatched 的「slice(-4000) 保留最近」真正按使用序而非建表序裁剪。
+    delete watched[n]; watched[n]=true; return;
+  }
+  watched[n]=true; saveWatched(); refreshSeen();
+}
+function refreshSeen(){
+  // v1.8.0：原先每张卡片都线性查找一次 view（O(卡片数×view长度)），
+  // 播放时每 3 秒全量重刷 300+ 卡片会周期性掉帧。这里先建 key 索引。
+  if(!_viewByKey){
+    _viewByKey={};
+    view.forEach(function(it){ _viewByKey[it.key]=it; });
+  }
+  document.querySelectorAll(".card").forEach(function(c){
+    var it=_viewByKey[c.dataset.key];
+    if(!it||!it.has_video) return;
+    var anyW=false;
+    (it.videos||[]).forEach(function(v){ if(isWatched(v.path)) anyW=true; });
+    c.classList.toggle("seen", anyW);
+    // 封面徽标：显示「已看 45%」/「已看完」/「已看」
+    // 注意：不能只在 anyW（点开过）时才显示——进度可能来自清空「已看」记录后的残留，
+    // 此时徽标应仍显示百分比，否则进度条和徽标会自相矛盾。
+    var lbl = itemProgressLabel(it);
+    var b=c.querySelector(".cell.cover .badge:not(.nov)");
+    if(!b && lbl){
+      // 卡片渲染时还没有徽标（当时既没进度也没「已看」），现在才第一次产生 → 补建
+      b=document.createElement("div");
+      b.className="badge";
+      var cover=c.querySelector(".cell.cover");
+      if(cover) cover.insertBefore(b, cover.firstChild);
+    }
+    if(b){
+      if(!lbl){ b.remove(); }         // 没有进度也没有「已看」→ 撤掉徽标，避免留下空的黑色小方块
+      else{
+        b.textContent = lbl;
+        b.classList.toggle("part", lbl.indexOf("%")>0);
+      }
+    }
+    // 卡片底部进度条：有记录才显示
+    var fp=itemProgressPct(it);
+    var pb=c.querySelector(".pbar");
+    if(fp>=0){
+      if(!pb){
+        pb=document.createElement("div");
+        pb.className="pbar";
+        c.appendChild(pb);
+      }
+      pb.classList.toggle("done", isDonePct(fp));
+      pb.innerHTML='<i style="width:'+fp+'%"></i>';
+    }else if(pb){
+      pb.remove();
+    }
+    // 视频列表项：✓ 标记 + 百分比
+    c.querySelectorAll(".vitem").forEach(function(btn,i){
+      var vid=(it.videos||[])[i];
+      if(!vid) return;
+      var vp=getProgress(vid.path);
+      btn.classList.toggle("watched", isWatched(vid.path));
+      var pc=btn.querySelector(".pc");
+      if(vp>=0){
+        if(!pc){ pc=document.createElement("span"); pc.className="pc"; btn.insertBefore(pc, btn.querySelector(".sz")); }
+        pc.textContent = isDonePct(vp) ? "100%" : vp+"%";
+        pc.classList.toggle("done", isDonePct(vp));
+      }else if(pc){
+        pc.remove();
+      }
+    });
+  });
+}
+
+/* ================= 图片查看 ================= */
+function openImg(rel){
+  var img=$("#imgv-img");
+  img.alt = rel.split("/").pop();
+  img.src = thumbUrl(rel);
+  $("#imgv").showModal();
+}
+
+/* ================= 数据加载 ================= */
+function loadData(){
+  if(location.protocol==="http:"||location.protocol==="https:"){
+    return fetch("api/library",{cache:"no-store"}).then(function(r){
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return r.json();
+    });
+  }
+  // file:// 模式：浏览器安全模型禁止 fetch 本地文件，改用 <script src> 注入的
+  // data/library.js（window.__AV_LIBRARY__）
+  return Promise.resolve(window.__AV_LIBRARY__ || null);
+}
+
+function afterData(d){
+  if(!d || !d.items) throw new Error("数据为空");
+  LIB.__http=d;
+  items=d.items;
+  // library 的 root 字段就是媒体根 —— 顺手记下来，设置面板打开时可立即预填
+  if(d.root){
+    mediaRoot.path=d.root;
+    var inp=document.getElementById("s-root");
+    if(inp && !inp.value) inp.value=d.root;
+  }
+  refresh();
+}
+
+/* ================= 扫描 ================= */
+function doScan(){
+  if(location.protocol==="file:"){ toast("file:// 模式无法调用扫描，请改用服务模式（双击 启动.bat）"); return; }
+  var btn=$("#btn-scan"); btn.disabled=true; btn.textContent="扫描中…";
+  // v1.8.0：服务端改为异步触发（POST /api/scan 立刻返回 202），
+  // 这里轮询 GET /api/status 等扫描真正结束再刷新。
+  fetch("api/scan",{method:"POST"}).then(function(r){return r.json();}).then(function(j){
+    if(j && j.ok) return waitScanDone();
+    throw new Error((j&&j.error)||"扫描失败");
+  }).then(function(){
+    toast("扫描完成，正在刷新");
+    return loadData();
+  }).then(afterData).catch(function(e){ toast("扫描失败："+e.message); })
+    .then(function(){ btn.disabled=false; btn.innerHTML="⟳ 扫描"; });
+}
+/* 轮询扫描状态，直到扫描结束（最多 10 分钟） */
+function waitScanDone(){
+  var t0=Date.now();
+  return new Promise(function(resolve,reject){
+    function poll(){
+      fetch("api/status",{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){
+        var sc=(j&&j.scan)||{};
+        if(!sc.running){
+          if(sc.ok===false) reject(new Error(sc.error||"扫描失败"));
+          else resolve();
+          return;
+        }
+        if(Date.now()-t0>600000){ reject(new Error("扫描超时（10 分钟）")); return; }
+        setTimeout(poll, 1000);
+      }).catch(function(e){ reject(e); });
+    }
+    setTimeout(poll, 800);
+  });
+}
+
+/* ================= 局域网访问（二维码） ================= */
+function openLan(){
+  if(location.protocol==="file:"){
+    toast("file:// 模式没有服务端，无法生成二维码；请改用服务模式（双击 启动.bat）");
+    return;
+  }
+  var box=$("#lan-qr"); box.innerHTML='<span style="color:#888;font-size:12px">加载中…</span>';
+  $("#lan-url").textContent=""; $("#lan-url").removeAttribute("href");
+  fetch("api/info").then(function(r){return r.json();}).then(function(j){
+    if(!j.ok && !j.url) throw new Error(j.error||"获取局域网信息失败");
+    var url=j.url||("http://"+j.lan_ip+":"+j.port+"/");
+    var a=$("#lan-url"); a.textContent=url; a.href=url;
+    var qr=j.qr;
+    if(qr && qr.length){
+      // 把 0/1 矩阵渲染成 SVG 二维码
+      var n=qr.length, cell=8;
+      var rects="";
+      for(var y=0;y<n;y++){
+        for(var x=0;x<n;x++){
+          if(qr[y][x]) rects+='<rect x="'+(x*cell)+'" y="'+(y*cell)+'" width="'+cell+'" height="'+cell+'"/>';
+        }
+      }
+      box.innerHTML='<svg viewBox="0 0 '+(n*cell)+' '+(n*cell)+'" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">'+
+        '<rect width="100%" height="100%" fill="#fff"/>'+rects+'</svg>';
+    }else{
+      box.innerHTML='<span style="color:#888;font-size:12px">本机未安装 qrcode 库，<br>请用手机手动输入上方地址</span>';
+    }
+  }).catch(function(e){
+    // v1.8.0：e.message 来自服务端 JSON（会回显用户输入的路径），
+    // 原先用 innerHTML 拼接 → 可被当作 HTML 解析（自 XSS）。改用 textContent。
+    box.textContent="";
+    var sp=document.createElement("span");
+    sp.style.color="#c0392b"; sp.style.fontSize="12px";
+    sp.textContent=e.message||"加载失败";
+    box.appendChild(sp);
+  });
+  $("#lan").showModal();
+}
+
+/* ================= 设置 ================= */
+// 三项开关均为「改动即保存」：change 事件里直接写 localStorage，无「保存」按钮
+// 「指定目录（媒体根）」是服务端行为，存 config.json，走 /api/root 读写
+function isHttpMode(){ return location.protocol==="http:" || location.protocol==="https:"; }
+
+/* ---- 指定目录（媒体根） ---- */
+var mediaRoot = {path:"", default:"", loaded:false};
+function rootHint(msg, isErr){
+  var el=$("#s-roothint");
+  if(!el) return;
+  el.textContent=msg||"";
+  el.style.color=isErr?"#c0392b":"var(--fg-dim)";
+}
+function setRootInputsDisabled(dis){
+  ["#s-root","#s-rootcheck","#s-rootreset","#s-rootsave"].forEach(function(s){
+    var el=$(s); if(el) el.disabled=dis;
+  });
+}
+function loadMediaRoot(){
+  var inp=$("#s-root");
+  if(!inp) return;
+  if(!isHttpMode()){
+    // file:// 模式无服务端，目录由服务端 config.json 决定，页面改不了
+    setRootInputsDisabled(true);
+    rootHint("仅服务模式（双击 启动.bat 启动后）可用；当前为 file:// 模式，无服务端可配置。", false);
+    return;
+  }
+  setRootInputsDisabled(false);
+  // 已有值（来自 library.root 的同步预填）时先保留，等服务端确认后再覆盖，
+  // 避免打开面板瞬间看到空输入框
+  fetch("api/root",{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){
+    if(!j || !j.path) return;
+    mediaRoot.path=j.path; mediaRoot.default=j.default||""; mediaRoot.loaded=true;
+    var inp=$("#s-root");
+    if(inp) inp.value=j.path;
+    var dirs=(j.content_dirs||[]).join("、");
+    rootHint("当前：媒体根「"+j.path+"」"+(dirs?"，内容目录 "+dirs:"")+"。改动后保存到 config.json 并自动重新扫描。", false);
+  }).catch(function(e){ rootHint("读取当前目录失败："+(e&&e.message?e.message:"网络错误"), true); });
+}
+function checkMediaRoot(){
+  var inp=$("#s-root");
+  if(!inp) return;
+  var p=inp.value.trim();
+  if(!p){ rootHint("目录不能为空", true); return; }
+  rootHint("检查中…", false);
+  fetch("api/root?path="+encodeURIComponent(p),{cache:"no-store"})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if(j && j.valid){
+        var dirs=Object.keys(j.content_dirs||{}).map(function(k){return k+"("+j.content_dirs[k]+")";}).join("、");
+        rootHint("✓ 目录可用："+p+(dirs?"，内容目录 "+dirs:""), false);
+      }else{
+        rootHint("✗ "+(j&&j.error?j.error:"目录不可用"), true);
+      }
+    }).catch(function(e){ rootHint("检查失败："+(e&&e.message?e.message:"网络错误"), true); });
+}
+function saveMediaRoot(){
+  var inp=$("#s-root");
+  if(!inp) return;
+  var p=inp.value.trim();
+  if(!p){ rootHint("目录不能为空", true); return; }
+  if(!confirm("确定把媒体根改为：\n"+p+"\n？\n保存后会立即重新扫描（首次切换到新目录可能耗时较长）。")) return;
+  rootHint("保存中…", false);
+  fetch("api/root",{
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({path:p})
+  }).then(function(r){return r.json();}).then(function(j){
+    if(j && j.ok){
+      mediaRoot.path=j.path;
+      rootHint("✓ 已切换到："+j.path+"（正在后台重新扫描，完成后自动刷新）", false);
+      toast("媒体根已切换，正在重新扫描");
+      // v1.8.0：不再「3 秒后无条件刷新」（扫描要几分钟，刷新了也看不到新数据），
+      // 改为轮询扫描状态，等真的扫完再刷新。
+      waitScanDone().then(function(){
+        toast("扫描完成，正在刷新");
+        location.reload();
+      }).catch(function(e){
+        rootHint("✗ 扫描未完成："+e.message,true);
+      });
+    }else{
+      rootHint("✗ "+(j&&j.error?j.error:"保存失败"), true);
+      toast("保存失败："+((j&&j.error)||"未知错误"));
+    }
+  }).catch(function(e){
+    rootHint("保存失败："+(e&&e.message?e.message:"网络错误"), true);
+    toast("保存失败");
+  });
+}
+function applySettingsToUI(){
+  $("#s-hidenovid").checked=settings.hideNoVideo;
+  $("#s-hidemarks").checked=settings.hideMarks;
+  $("#s-bigcards").checked=settings.bigCards;
+}
+function watchedText(){
+  return Object.keys(watched).sort().join("\n");
+}
+/* 观看进度列表（设置面板展示）：按百分比升序，方便先补没看完的 */
+function progressText(){
+  var arr=Object.keys(progress).map(function(k){ return {k:k, p:progress[k]}; });
+  arr.sort(function(a,b){ return a.p-b.p || (a.k<b.k?-1:1); });
+  return arr;
+}
+function renderProgressList(){
+  var box=$("#s-plist");
+  if(!box) return;
+  var arr=progressText();
+  var done=0;
+  arr.forEach(function(o){ if(isDonePct(o.p)) done++; });
+  var pc=$("#s-pcount"), pd=$("#s-pdone");
+  if(pc) pc.textContent=String(arr.length);
+  if(pd) pd.textContent=String(done);
+  if(!arr.length){
+    box.innerHTML='<div style="color:var(--fg-dim)">暂无进度记录。播放视频后自动记录观看百分比。</div>';
+    return;
+  }
+  box.innerHTML=arr.map(function(o){
+    var name=o.k.split("/").pop();
+    var cls=isDonePct(o.p)?"pc done":"pc";
+    return '<div style="display:flex;gap:6px;align-items:center">'+
+      '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="'+esc(o.k)+'">'+esc(name)+'</span>'+
+      '<span class="'+cls+'">'+(isDonePct(o.p)?"100%":o.p+"%")+'</span></div>';
+  }).join("");
+}
+function openSettings(){
+  applySettingsToUI();
+  $("#s-watched").value=watchedText();
+  $("#s-count").textContent=String(Object.keys(watched).length);
+  renderProgressList();
+  loadMediaRoot();   // 打开面板时拉取服务端当前媒体根
+  $("#set").showModal();
+}
+function closeSettings(){ $("#set").close(); }
+function bindSettings(){
+  var save=function(){
+    settings.hideNoVideo=$("#s-hidenovid").checked;
+    settings.hideMarks=$("#s-hidemarks").checked;
+    settings.bigCards=$("#s-bigcards").checked;
+    // v1.8.0：原先只 render()，Tab 计数停留在旧口径 → 改用 refresh()（含 buildTabs）
+    saveSettings(); refresh();
+  };
+  ["#s-hidenovid","#s-hidemarks","#s-bigcards"].forEach(function(s){
+    $(s).addEventListener("change",save);
+  });
+  $("#s-ok").onclick=closeSettings;
+  $("#s-clear").onclick=function(){
+    if(!confirm("确定清空全部已看记录？")) return;
+    watched={}; saveWatched(); $("#s-watched").value=""; $("#s-count").textContent="0";
+    refreshSeen(); render(); toast("已看记录已清空");
+  };
+  $("#s-import").onclick=function(){
+    var lines=$("#s-watched").value.split(/\r?\n/);
+    var n=0, miss=0;
+    // v1.8.0：原先「检查」按后缀匹配，但「写入」却直接存裸文件名，
+    // 而 isWatched 用完整相对路径查表 → 永远匹配不上，却仍提示「已导入 N 条」。
+    // 现在写入时先解析成库里的完整相对路径；解析不到就如实计数为未匹配。
+    var byBase={};
+    items.forEach(function(it){
+      (it.videos||[]).forEach(function(v){
+        var bn=String(v.path||"").split("/").pop().toUpperCase();
+        if(bn && !byBase[bn]) byBase[bn]=v.path;
+      });
+    });
+    lines.forEach(function(l){
+      var raw=String(l||"").trim();
+      if(!raw) return;
+      var k=normKey(raw);
+      if(!k) return;
+      if(watched[k]) return;                       // 已是完整路径且已标记
+      // 1) 原样（完整相对路径）命中已有 watched 键 → 跳过
+      if(Object.prototype.hasOwnProperty.call(watched,k)) return;
+      // 2) 用 basename 解析成库里的完整相对路径
+      var bn=k.split("/").pop();
+      var full=byBase[bn];
+      if(!full){ miss++; return; }
+      var fk=normKey(full);
+      if(watched[fk]) return;                    // 已标记
+      watched[fk]=true; n++;
+    });
+    saveWatched(); refreshSeen(); $("#s-count").textContent=String(Object.keys(watched).length);
+    // 立即让新导入的「已看」标记反映到墙上
+    render();
+    var msg = n? ("已导入 "+n+" 条") : "没有新增记录";
+    if(miss) msg += "；"+miss+" 条未匹配到库中条目";
+    toast(msg);
+  };
+  // 清空观看进度（不动「已看」标记）
+  $("#s-pclear").onclick=function(){
+    if(!confirm("确定清空全部观看进度记录？（「已看」标记不受影响）")) return;
+    progress={}; saveProgress(); renderProgressList(); refreshSeen(); render();
+    toast("观看进度已清空");
+  };
+  // 指定目录（媒体根）：检查 / 恢复默认 / 保存
+  $("#s-rootcheck").onclick=checkMediaRoot;
+  $("#s-rootsave").onclick=saveMediaRoot;
+  $("#s-rootreset").onclick=function(){
+    // 默认值以服务端为准；尚未取到时用页面内置的同名字符串兜底
+    var d=mediaRoot.default||"\\\\ds1821\\HD\\Download\\99 AV";
+    var inp=$("#s-root");
+    if(inp) inp.value=d;
+    rootHint("已填入默认目录："+d+"（点「保存」生效）", false);
+  };
+}
+
+/* ================= 事件绑定 ================= */
+function bind(){
+  window.addEventListener("scroll",savePos,{passive:true});
+  $("#btn-set").onclick=openSettings;
+  $("#btn-scan").onclick=doScan;
+  $("#btn-lan").onclick=openLan;
+  $("#lan-close").onclick=function(){ $("#lan").close(); };
+  /* ---- 番号搜索：输入即搜（200ms 防抖）+ Esc 清空 + Enter 跳到首个结果 ---- */
+  var st=null;
+  function doSearch(){
+    q=$("#search").value.trim();
+    saveQuery();
+    render(); restorePos();
+  }
+  $("#search").addEventListener("input",function(){
+    clearTimeout(st);
+    st=setTimeout(doSearch,200);
+  });
+  $("#search").addEventListener("keydown",function(e){
+    if(e.key==="Escape"){                       // Esc：清空搜索
+      e.preventDefault();
+      $("#search").value=""; q=""; saveQuery(); render(); restorePos();
+      return;
+    }
+    if(e.key==="Enter"){                        // Enter：跳到第一个结果
+      e.preventDefault();
+      clearTimeout(st);
+      if(q!==this.value.trim()){ q=this.value.trim(); saveQuery(); render(); }
+      if(view.length) scrollToCard(view[0].key);
+      else toast("没有匹配「"+(q||"")+"」的条目");
+    }
+  });
+  $("#sqclear").onclick=function(){
+    $("#search").value=""; q=""; saveQuery(); render(); restorePos();
+    $("#search").focus();
+  };
+  // Ctrl/Cmd+F 聚焦搜索框
+  document.addEventListener("keydown",function(e){
+    if((e.ctrlKey||e.metaKey) && (e.key==="f"||e.key==="F")){
+      e.preventDefault(); $("#search").focus(); $("#search").select();
+    }
+  });
+  $("#vd-close").onclick=closeVideo;
+  // v1.9.0：触屏上全屏退出后的第一下 click 有几率丢失 → pointerup 双通道先到先关，
+  // 并用复查定时器兜底（closeVideo 对已关闭弹窗是幂等空操作，重复调用无副作用）
+  $("#vd-close").addEventListener("pointerup",function(e){ safeCloseVideo(); });
+  var JUMPS=[["#vd-back10",-10],["#vd-back5",-5],["#vd-back3",-3],["#vd-back1",-1],
+             ["#vd-fwd1",1],["#vd-fwd3",3],["#vd-fwd5",5],["#vd-fwd10",10]];
+  JUMPS.forEach(function(j){
+    var el=$(j[0]);
+    if(el) el.onclick=function(){ jumpVideo(j[1]); };
+  });
+  $("#vd-sys").onclick=sysOpen;
+  $("#vd-prev").onclick=function(){stepVideo(-1);};
+  $("#vd-next").onclick=function(){stepVideo(1);};
+  $("#vd-video").addEventListener("ended",function(){
+    // 看完 → 记 100%（DONE_PCT 阈值 95%，片尾误差可容忍）
+    if(curPath) setWatchPct(curPath, 100);
+    updateVdPct(100);
+    refreshSeen();
+    if(curV>=0 && curV<videoIndex.length-1) stepVideo(1);
+  });
+  // 观看进度采集：每约 250ms 触发一次，内部按 3 秒节流落盘
+  $("#vd-video").addEventListener("timeupdate",onTimeUpdate);
+  // 暂停时也刷一次，保证最后一段进度不丢
+  $("#vd-video").addEventListener("pause",flushProgress);
+  $("#vd-video").addEventListener("seeked",flushProgress);
+  $("#vd-video").addEventListener("loadedmetadata",warmVideo);
+  // v1.3.0：取消 progress→warmVideo 绑定。原绑定会在 progress 回调里再次 load()，
+  // 触发 load→abort→loadstart→progress 的无限自打断循环，导致 HTTP 模式下视频
+  // 永远起不了播（与用局域网 IP 还是 127.0.0.1 无关）。详见《软件升级迭代记录》v1.3.0。
+  $("#vd-video").addEventListener("error",onVdError);
+  // 弹窗打开期间锁住背景滚动，关闭时自动恢复（原生 dialog 的 showModal 本身已做大部分处理，
+  // 这里再显式记录一次位置，保证关闭后仍停在同一行）
+  $("#vd").addEventListener("close",function(){
+    var v=$("#vd-video");
+    try{ v.pause(); }catch(e){}
+    flushProgress();            // 关弹窗时把最后进度落盘
+    v.removeAttribute("src"); v.load();
+    curPath=null;
+    savePos();
+  });
+  $("#imgv").addEventListener("click",function(){ this.close(); });
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Escape"){
+      if($("#vd").open) safeCloseVideo();
+      else if($("#imgv").open) $("#imgv").close();
+      else if($("#set").open) closeSettings();
+    }
+    if($("#vd").open){
+      // v1.9.0：Shift+方向键 = 快退/快进 5 秒（先判 shift，避免与「上/下一个视频」双重触发）
+      if(e.shiftKey && (e.key==="ArrowLeft"||e.key==="ArrowRight")){
+        e.preventDefault();
+        jumpVideo(e.key==="ArrowRight"?5:-5);
+      }
+      else if(e.key==="ArrowLeft") stepVideo(-1);
+      else if(e.key==="ArrowRight") stepVideo(1);
+    }
+  });
+  // 页面隐藏/离开时记住位置 + 落盘观看进度
+  window.addEventListener("pagehide",function(){ flushProgress(); savePos(); });
+  window.addEventListener("beforeunload",function(){ flushProgress(); savePos(); });
+  document.addEventListener("visibilitychange",function(){
+    if(document.hidden){ flushProgress(); savePos(); }
+  });
+}
+
+/* ================= 启动 ================= */
+loadSettings(); loadWatched(); loadProgress(); loadQuery();
+try{ checkKeyMigration(); }catch(e){}   // v1.9.0：键格式迁移（完整路径 → 番号目录/文件名）
+bind(); bindSettings();
+loadData().then(afterData).catch(function(e){
+  $("#grid").innerHTML='<div class="empty">数据加载失败：'+esc(e.message)+
+    '<br><br>file:// 模式请确认 <code>data/library.js</code> 存在；'+
+    '服务模式请确认服务已启动。</div>';
+});
+
+// 服务端版本自检：服务模式访问 /api/status 拿服务端版本，与页面内置版本比对。
+// 若服务端版本落后（比如还开着旧进程没重启），顶部红条提示，避免「修了却没生效」。
+(function(){
+  if(location.protocol!=="http:" && location.protocol!=="https:") return;
+  var PAGE_VER="1.9.0";
+  fetch("api/status").then(function(r){return r.json();}).then(function(j){
+    if(!j || !j.version) return;
+    var sv=j.version, pv=PAGE_VER;
+    function cmp(a,b){var x=a.split("."),y=b.split(".");for(var i=0;i<3;i++){var p=parseInt(x[i]||"0"),q=parseInt(y[i]||"0");if(p!==q)return p<q?-1:1;}return 0;}
+    if(cmp(sv,pv)<0){
+      var bar=document.createElement("div");
+      bar.style.cssText="position:sticky;top:0;z-index:999;background:#e5484d;color:#fff;padding:8px 12px;font-size:14px;text-align:center;line-height:1.5";
+      bar.textContent="⚠ 服务端版本过旧（服务端 "+sv+" / 页面需 "+pv+"）：请关闭页面后重新双击 启动.bat 以加载新服务。";
+      document.body.insertBefore(bar, document.body.firstChild);
+    }
+  }).catch(function(){});
+})();
+
+// 数据版本变化提示（scanner 重扫后 file:// 模式需手动刷新页面）
+(function(){
+  var v=(window.__AV_LIBRARY__ && window.__AV_LIBRARY__.generated) || (LIB.__http && LIB.__http.generated);
+  if(!v) return;
+  try{
+    var old=localStorage.getItem(LS.ver);
+    if(old && old!==v){
+      toast("库数据已更新（"+v.replace("T"," ").slice(0,16)+"），当前页面为新数据");
+    }
+    localStorage.setItem(LS.ver, v);
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
